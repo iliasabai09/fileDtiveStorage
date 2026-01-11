@@ -1,23 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import { drive_v3, google } from 'googleapis';
 import * as fs from 'fs';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class GoogleDriveService {
   private readonly drive: drive_v3.Drive;
   private folderId?: string;
 
-  constructor() {
-    const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
-    const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
+  constructor(private configService: ConfigService) {
+    const clientId = this.configService.getOrThrow<string>(
+      'GOOGLE_OAUTH_CLIENT_ID',
+    );
 
-    // (опционально) папка, куда складывать файлы
-    this.folderId = process.env.GOOGLE_DRIVE_FOLDER_ID || undefined;
+    const clientSecret = this.configService.getOrThrow<string>(
+      'GOOGLE_OAUTH_CLIENT_SECRET',
+    );
 
-    if (!clientId) throw new Error('GOOGLE_OAUTH_CLIENT_ID is missing');
-    if (!clientSecret) throw new Error('GOOGLE_OAUTH_CLIENT_SECRET is missing');
-    if (!refreshToken) throw new Error('GOOGLE_OAUTH_REFRESH_TOKEN is missing');
+    const refreshToken = this.configService.getOrThrow<string>(
+      'GOOGLE_OAUTH_REFRESH_TOKEN',
+    );
+
+    // опционально
+    this.folderId = this.configService.get<string>('GOOGLE_DRIVE_FOLDER_ID');
 
     const oAuth2Client = new google.auth.OAuth2(clientId, clientSecret);
     oAuth2Client.setCredentials({ refresh_token: refreshToken });
