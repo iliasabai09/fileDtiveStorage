@@ -4,9 +4,12 @@ import { AppService } from './app.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { FileModule } from './file/file.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { GoogleDriveModule } from './google-drive/google-drive.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true, // 👈 важно
     }),
@@ -18,6 +21,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       }),
     }),
     FileModule,
+    GoogleDriveModule,
   ],
   controllers: [AppController],
   providers: [AppService],
