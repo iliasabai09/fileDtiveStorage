@@ -13,20 +13,14 @@ export class GoogleDriveService {
   }
 
   initStorage() {
-    const clientId = this.configService.getOrThrow<string>(
-      'GOOGLE_OAUTH_CLIENT_ID',
-    );
+     const clientId = '707973009601-2ib3o2fqdfbh46o8d8i285t45vnpk2bq.apps.googleusercontent.com';
 
-    const clientSecret = this.configService.getOrThrow<string>(
-      'GOOGLE_OAUTH_CLIENT_SECRET',
-    );
+    const clientSecret = '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';
 
-    const refreshToken = this.configService.getOrThrow<string>(
-      'GOOGLE_OAUTH_REFRESH_TOKEN',
-    );
+    const refreshToken = '1//0c1DZBLXYXHAcCgYIARAAGAwSNwF-L9IrabsEipTCccR065mnxAMKy31abxyHkiXsWAJjOcu8k43UM4sW73KcRHOdly30LvhCWRU'
 
     // опционально
-    this.folderId = this.configService.get<string>('GOOGLE_DRIVE_FOLDER_ID');
+    this.folderId = '1tUR09IWgN3QNtHHkqvYJ7iv_tenThRMp'
 
     const oAuth2Client = new google.auth.OAuth2(clientId, clientSecret);
     oAuth2Client.setCredentials({ refresh_token: refreshToken });
