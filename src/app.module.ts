@@ -16,8 +16,8 @@ import { ScheduleModule } from '@nestjs/schedule';
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        uri: config.get<string>('MONGO_URL'),
+      useFactory: () => ({
+        uri: 'mongodb+srv://iliasabaimain_db_user:wjpN78P4TkLOJZHL@cluster0.xde6qxu.mongodb.net/',
       }),
     }),
     FileModule,
