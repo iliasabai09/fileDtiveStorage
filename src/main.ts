@@ -5,6 +5,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import * as path from 'path';
 import { join } from 'path';
 import * as fs from 'fs';
+import * as process from 'node:process';
 
 async function bootstrap() {
   // ✅ создаём uploads в корне проекта
@@ -33,7 +34,7 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
-
+  console.log('PORT IS ', process.env.PORT);
   // await app.listen(process.env.PORT ?? 3000);
   await app.listen(3500);
 }
