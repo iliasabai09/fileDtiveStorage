@@ -5,10 +5,14 @@ import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class GoogleDriveService {
-  private readonly drive: drive_v3.Drive;
+  private drive: drive_v3.Drive;
   private folderId?: string;
 
   constructor(private configService: ConfigService) {
+    this.initStorage();
+  }
+
+  initStorage() {
     const clientId = this.configService.getOrThrow<string>(
       'GOOGLE_OAUTH_CLIENT_ID',
     );
