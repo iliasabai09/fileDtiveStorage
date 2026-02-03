@@ -3,53 +3,50 @@ import { HydratedDocument } from 'mongoose';
 
 export type FileDocument = HydratedDocument<File>;
 
+export type DriveSyncStatus =
+  | 'in_progress'
+  | 'uploaded'
+  | 'error'
+  | 'outdated'
+  | 'pendingDelete'
+  | 'deleted';
+
 @Schema({ timestamps: true })
 export class File {
-  // как файл назывался у пользователя
   @Prop({ required: true })
   originalName: string;
 
-  // как ты сохранил на диске (уникальное имя)
   @Prop({ required: true })
   filename: string;
 
-  // название проекта
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   projectName: string;
 
-  // относительный путь
   @Prop({ required: true })
   path: string;
 
-  // чтобы понимать тип
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   mimeType: string;
 
-  // размер (у тебя fileSize)
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   size: number;
 
-  // Идентификатор гугл диска файла
-  @Prop()
+  @Prop({ index: true })
   driveFileId?: string;
 
-  // Статус гугл диска
-  @Prop({ required: true })
-  driveSyncStatus:
-    | 'in_progress'
-    | 'uploaded'
-    | 'error'
-    | 'outdated'
-    | 'pendingDelete'
-    | 'deleted';
-
-  // Идентификатор гугл диска файла
-  @Prop()
-  createdAt: Date;
-
-  // Идентификатор гугл диска файла
-  @Prop()
-  updatedAt: Date;
+  @Prop({ required: true, index: true })
+  driveSyncStatus: DriveSyncStatus;
 }
 
 export const FileSchema = SchemaFactory.createForClass(File);
+
+// ✅ Индексы под твои запросы (фильтры + сортировки)
+FileSchema.index({ projectName: 1, createdAt: -1 });
+FileSchema.index({ projectName: 1, size: -1 });
+FileSchema.index({ driveSyncStatus: 1, createdAt: -1 });
+
+// Если часто фильтруешь по типам + сортируешь по дате
+FileSchema.index({ mimeType: 1, createdAt: -1 });
+
+// Поиск по имени (лучше чем regex)
+FileSchema.index({ originalName: 'text' });

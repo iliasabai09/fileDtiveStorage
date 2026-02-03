@@ -10,6 +10,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 import axios from 'axios';
 import { randomUUID } from 'crypto';
+import { buildMimeFilter } from './helpers/buildMimeFilter';
+import * as iconv from 'iconv-lite';
 
 @Injectable()
 export class FileService {
@@ -21,6 +23,10 @@ export class FileService {
 
   private isDriveSyncRunning = false;
 
+  decodeFileName(name: string): string {
+    return iconv.decode(Buffer.from(name, 'latin1'), 'utf8');
+  }
+
   private buildFileUrl(path: string): string {
     return `${this.request.protocol}://${this.request.get(
       'host',
@@ -31,8 +37,9 @@ export class FileService {
     file: Express.Multer.File,
     projectName: string,
   ): Promise<FileResponseDto> {
+    const originalName = this.decodeFileName(file.originalname);
     const savedFile = await this.fileModel.create({
-      originalName: file.originalname,
+      originalName,
       filename: file.filename,
       path: file.filename, // ⚠️ path БЕЗ /uploads
       mimeType: file.mimetype,
@@ -49,8 +56,10 @@ export class FileService {
       url: this.buildFileUrl(savedFile.path),
       driveSyncStatus: savedFile.driveSyncStatus,
       driveFileId: savedFile.driveFileId,
-      createdAt: savedFile.createdAt,
-      updatedAt: savedFile.updatedAt,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      createdAt: savedFile['createdAt'],
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      updatedAt: savedFile['updatedAt'],
     };
   }
 
@@ -72,7 +81,8 @@ export class FileService {
     }
 
     // 2️⃣ обновляем данные
-    fileDoc.originalName = newFile.originalname;
+    const originalName = this.decodeFileName(newFile.originalname);
+    fileDoc.originalName = originalName;
     fileDoc.filename = newFile.filename;
     fileDoc.path = newFile.filename;
     fileDoc.mimeType = newFile.mimetype;
@@ -91,8 +101,10 @@ export class FileService {
       url: this.buildFileUrl(savedFile.path),
       driveSyncStatus: savedFile.driveSyncStatus,
       driveFileId: savedFile.driveFileId,
-      createdAt: savedFile.createdAt,
-      updatedAt: savedFile.updatedAt,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      createdAt: savedFile['createdAt'],
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      updatedAt: savedFile['updatedAt'],
     };
   }
 
@@ -173,8 +185,10 @@ export class FileService {
       url: this.buildFileUrl(savedFile.path),
       driveSyncStatus: savedFile.driveSyncStatus,
       driveFileId: savedFile.driveFileId,
-      createdAt: savedFile.createdAt,
-      updatedAt: savedFile.updatedAt,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      createdAt: savedFile['createdAt'],
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      updatedAt: savedFile['updatedAt'],
     };
   }
 
@@ -326,5 +340,94 @@ export class FileService {
     }
 
     return { limit: batchLimit, checked, restored, skipped, failed };
+  }
+
+  async listFiles(params: {
+    page: number;
+    limit: number;
+    projectName?: string;
+    types?: ('image' | 'pdf' | 'video' | 'other')[];
+    q?: string;
+    sortBy?: 'createdAt' | 'size';
+    sortOrder?: 'asc' | 'desc';
+  }) {
+    const { page, limit, projectName, q, types, sortBy, sortOrder } = params;
+
+    const skip = (page - 1) * limit;
+
+    const filter: any = {
+      driveSyncStatus: { $nin: ['deleted', 'pendingDelete'] },
+    };
+
+    if (projectName) {
+      filter.projectName = projectName;
+    }
+
+    // ---- SEARCH (q): regex for short, $text for long ----
+    const queryText = (q || '').trim();
+    const useTextSearch = queryText.length >= 3;
+
+    if (queryText) {
+      if (useTextSearch) {
+        filter.$text = { $search: queryText };
+      } else {
+        // короткий поиск — оставляем regex
+        filter.originalName = { $regex: queryText, $options: 'i' };
+      }
+    }
+
+    // ---- types (multi) ----
+    if (types && types.length) {
+      filter.$or = buildMimeFilter(types);
+    }
+
+    // ---- SORT ----
+    // Если используем $text и сортировка не задана — сортируем по score + свежести
+    let sort: any;
+
+    if (useTextSearch && !sortBy) {
+      sort = {
+        score: { $meta: 'textScore' },
+        createdAt: -1,
+      };
+    } else {
+      sort = {
+        [sortBy || 'createdAt']: (sortOrder || 'desc') === 'asc' ? 1 : -1,
+      };
+    }
+
+    // ---- QUERY ----
+    const findQuery = this.fileModel.find(filter);
+
+    // если text-search — добавим score в select (полезно, можно не отдавать наружу)
+    if (useTextSearch) {
+      findQuery.select({ score: { $meta: 'textScore' } });
+    }
+
+    const [total, docs] = await Promise.all([
+      this.fileModel.countDocuments(filter),
+      findQuery.sort(sort).skip(skip).limit(limit),
+    ]);
+
+    return {
+      items: docs.map((f: any) => ({
+        id: f._id.toString(),
+        originalName: f.originalName,
+        projectName: f.projectName || 'default',
+        mimeType: f.mimeType,
+        size: f.size,
+        url: this.buildFileUrl(f.path),
+        driveSyncStatus: f.driveSyncStatus,
+        createdAt: f.createdAt,
+        updatedAt: f.updatedAt,
+        score: f.score,
+        // если хочешь — можно вернуть score для дебага
+        // score: f.score,
+      })),
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    };
   }
 }

@@ -36,6 +36,10 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document);
   console.log('PORT IS ', process.env.PORT);
   // await app.listen(process.env.PORT ?? 3000);
+  app.enableCors({
+    origin: true, // разрешит текущий origin (удобно для dev)
+    credentials: false,
+  });
   await app.listen(3000);
 }
 

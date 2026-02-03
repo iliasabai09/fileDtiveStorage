@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -26,6 +27,8 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { type Request } from 'express';
 import { SaveFileByUrlDto } from './dto/save-file-by-url.dto';
+import { ListFilesBodyDto } from './dto/list-files.body.dto';
+import * as fs from 'node:fs';
 
 @Controller('file')
 export class FileController {
@@ -43,14 +46,25 @@ export class FileController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-        destination: 'uploads', // 📁 КУДА СОХРАНЯЕМ
+        destination: (req, file, cb) => {
+          // const uploadDir = 'C:/dev/uploads';
+          const uploadDir = '/var/www/uploads';
+
+          // ✅ гарантируем, что папка существует
+          if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+          }
+
+          cb(null, uploadDir);
+        },
         filename: (req, file, cb) => {
           const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
+
           cb(null, uniqueName + extname(file.originalname));
         },
       }),
       limits: {
-        fileSize: 10 * 1024 * 1024, // 10 MB
+        fileSize: 10 * 1024 * 1024,
       },
     }),
   )
@@ -133,5 +147,32 @@ export class FileController {
   })
   async restoreMissing(@Query('limit') limit?: string) {
     return this.filesService.restoreMissingLocalFilesBatch(Number(limit) || 50);
+  }
+
+  @Post('list')
+  @ApiOperation({ summary: 'Список файлов с пагинацией и фильтрами' })
+  @ApiQuery({ name: 'page', example: 1, required: true })
+  @ApiQuery({ name: 'limit', example: 20, required: true })
+  async list(
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Body() body: ListFilesBodyDto,
+  ) {
+    const pageNum = Number(page);
+    const limitNum = Number(limit);
+
+    if (!pageNum || pageNum < 1) {
+      throw new BadRequestException('page must be >= 1');
+    }
+
+    if (!limitNum || limitNum < 1 || limitNum > 100) {
+      throw new BadRequestException('limit must be between 1 and 100');
+    }
+
+    return this.filesService.listFiles({
+      page: pageNum,
+      limit: limitNum,
+      ...body,
+    });
   }
 }
