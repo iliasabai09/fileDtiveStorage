@@ -6,6 +6,8 @@ import { FileModule } from './file/file.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GoogleDriveModule } from './google-drive/google-drive.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { DriveModule } from './drive/drive.module';
+import { TelegramService } from './telegram/telegram.service';
 
 @Module({
   imports: [
@@ -22,8 +24,9 @@ import { ScheduleModule } from '@nestjs/schedule';
     }),
     FileModule,
     GoogleDriveModule,
+    DriveModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, TelegramService],
 })
 export class AppModule {}

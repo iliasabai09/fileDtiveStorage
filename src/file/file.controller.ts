@@ -3,10 +3,8 @@ import {
   Body,
   Controller,
   Delete,
-  Get,
   Param,
   Post,
-  Put,
   Query,
   Req,
   UploadedFile,
@@ -23,12 +21,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FileUploadDto } from './dto/upload-file.dto';
 import { FileResponseDto } from './dto/response-file.dto';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
 import { type Request } from 'express';
-import { SaveFileByUrlDto } from './dto/save-file-by-url.dto';
 import { ListFilesBodyDto } from './dto/list-files.body.dto';
-import * as fs from 'node:fs';
 
 @Controller('file')
 export class FileController {
@@ -38,115 +32,35 @@ export class FileController {
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: FileUploadDto })
   @ApiHeader({
-    name: 'X-Project-Name',
+    name: 'x-project-name',
     description: 'Название проекта',
+    required: false,
+    example: 'default-project',
+  })
+  @ApiHeader({
+    name: 'x-project-url',
+    description: 'Директория',
     required: false,
     example: 'default-project',
   })
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          // const uploadDir = 'C:/dev/uploads';
-          const uploadDir = '/var/www/uploads';
-
-          // ✅ гарантируем, что папка существует
-          if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-          }
-
-          cb(null, uploadDir);
-        },
-        filename: (req, file, cb) => {
-          const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
-
-          cb(null, uniqueName + extname(file.originalname));
-        },
-      }),
-      limits: {
-        fileSize: 10 * 1024 * 1024,
-      },
+      limits: { fileSize: 10 * 1024 * 1024 },
     }),
   )
   async upload(
     @UploadedFile() file: Express.Multer.File,
     @Req() req: Request,
-  ): Promise<FileResponseDto> {
-    const projectName = req.header('x-project-name') || '';
-    return this.filesService.upload(file, projectName);
+  ): Promise<FileResponseDto | any> {
+    const projectName = req.header('x-project-name') || 'default';
+    const projectUrl = req.header('x-project-url') || '';
+    return this.filesService.upload(file, projectName, projectUrl);
   }
 
-  // ---------- SYNC WITH GOOGLE DRIVE ----------
-  @Get('sync')
-  @ApiOperation({
-    summary: 'Синхронизация файлов с Google Drive',
-    description:
-      'Загружает файлы со статусами in_progress и outdated, удаляет pendingDelete',
-  })
-  async sync() {
-    return this.filesService.syncFilesToDrive();
-  }
-
-  @Post('upload-by-url')
-  @ApiOperation({ summary: 'Сохранить файл по ссылке' })
-  @ApiHeader({
-    name: 'X-Project-Name',
-    required: false,
-    example: 'default-project',
-  })
-  @ApiBody({ type: SaveFileByUrlDto })
-  async uploadByUrl(
-    @Body() dto: SaveFileByUrlDto,
-    @Req() req: Request,
-  ): Promise<FileResponseDto> {
-    const projectName = req.header('x-project-name') || '';
-    return this.filesService.saveFileFromUrl(dto.url, projectName);
-  }
-
-  @Put(':id')
-  @ApiOperation({ summary: 'Обновить файл (заменить фото)' })
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: FileUploadDto })
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: 'uploads',
-        filename: (req, file, cb) => {
-          const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, uniqueName + extname(file.originalname));
-        },
-      }),
-      limits: {
-        fileSize: 10 * 1024 * 1024, // 10 MB
-      },
-    }),
-  )
-  async update(
-    @Param('id') id: string,
-    @UploadedFile() file: Express.Multer.File,
-  ): Promise<FileResponseDto> {
-    return this.filesService.updateFile(id, file);
-  }
-
-  @Delete(':id')
+  @Delete(':path')
   @ApiOperation({ summary: 'Удалить файл' })
-  async remove(@Param('id') id: string) {
-    return this.filesService.deleteFile(id);
-  }
-
-  @Get('restore-missing')
-  @ApiOperation({
-    summary:
-      'Восстановить отсутствующие локальные файлы из Google Drive (пачка)',
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: 'Сколько файлов взять за один запуск (1..50). По умолчанию 50',
-    example: 50,
-  })
-  async restoreMissing(@Query('limit') limit?: string) {
-    return this.filesService.restoreMissingLocalFilesBatch(Number(limit) || 50);
+  async remove(@Param('path') path: string) {
+    return this.filesService.deleteFile(path);
   }
 
   @Post('list')

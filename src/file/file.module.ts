@@ -4,14 +4,15 @@ import { FileService } from './file.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { FileSchema } from './schemas/file.schema';
 import { GoogleDriveModule } from '../google-drive/google-drive.module';
-import { FileCron } from './file.cron';
+import { DriveModule } from '../drive/drive.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: File.name, schema: FileSchema }]),
     GoogleDriveModule,
+    DriveModule,
   ],
   controllers: [FileController],
-  providers: [FileService, FileCron],
+  providers: [FileService],
 })
 export class FileModule {}

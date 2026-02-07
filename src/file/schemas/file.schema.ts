@@ -16,7 +16,7 @@ export class File {
   @Prop({ required: true })
   originalName: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   filename: string;
 
   @Prop({ required: true, index: true })
@@ -34,7 +34,7 @@ export class File {
   @Prop({ index: true })
   driveFileId?: string;
 
-  @Prop({ required: true, index: true })
+  @Prop({ required: false, index: true })
   driveSyncStatus: DriveSyncStatus;
 }
 
